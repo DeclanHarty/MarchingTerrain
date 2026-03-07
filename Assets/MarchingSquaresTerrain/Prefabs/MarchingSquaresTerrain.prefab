@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &6856218873920227046
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5484807342749339880}
+  - component: {fileID: 52592199655195028}
+  m_Layer: 0
+  m_Name: MarchingSquaresTerrain
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5484807342749339880
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6856218873920227046}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.45275512, y: 0.62828356, z: 7.3314085}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &52592199655195028
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6856218873920227046}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74e0f04ce2ccbb043afa08d129637a5c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  surfaceValue: 0.496
+  bottomLeftMarkerTransform: {fileID: 0}
+  randOffset: {x: 6.67, y: -197.7}
+  noiseScale: 7.3
+  gridScale: 0.513
+  interpolationScale: 1
+  gridChunksX: 8
+  gridChunksY: 8
+  chunkSize: 16
+  caseTilePrefab: {fileID: 3666012661252111874, guid: 1e268efb0fc390f4a88fb939a3e09754, type: 3}
+  chunkPrefab: {fileID: 3462369183488010473, guid: 84bd1626c7b3cbd4da4e1739f4be7525, type: 3}
+  meshMaterial: {fileID: 2100000, guid: 0d38dc4479e98b749830e755ee7f8353, type: 2}
+  MESH_VERTS_UPPER_LIMIT: 65000

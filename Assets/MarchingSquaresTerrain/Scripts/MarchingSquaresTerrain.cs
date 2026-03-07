@@ -23,9 +23,9 @@ public class MarchingSquaresTerrain : MonoBehaviour
     [Range(0, 1)]
     public float interpolationScale;
 
-    [Min(2)]
+    [Min(1)]
     public int gridChunksX = 2;
-    [Min(2)]
+    [Min(1)]
     public int gridChunksY = 2;
 
     [Min(2)]
@@ -174,7 +174,6 @@ public class MarchingSquaresTerrain : MonoBehaviour
     {
         Vector2 worldToGridCornerDifference = worldPos - bottomLeftPosition;
         Vector2 gridPosition = worldToGridCornerDifference / gridScale;
-        Debug.Log(gridPosition);
 
         return gridPosition;
     }
@@ -201,6 +200,7 @@ public class MarchingSquaresTerrain : MonoBehaviour
                 {
                     grid.SetGridValue(pos, grid.GetGridValue(pos) - subtractAmount);
                     Vector2Int chunkPos = GridToChunk(pos);
+                    //Debug.Log(chunkPos);
                     if (!chunksToRegenerate.Contains(chunkPos))
                     {
                         chunksToRegenerate.Add(chunkPos);
@@ -218,14 +218,13 @@ public class MarchingSquaresTerrain : MonoBehaviour
         {
             MarchingSquaresChunk chunk = chunks[chunkPos.x, chunkPos.y];
             chunk.Clear();
-
-            for(int x = chunkPos.x * chunkSize; x < (chunkPos.x + 1) * chunkSize; x++)
+            for(int x = chunkPos.x * chunkSize; x < (chunkPos.x + 1) * chunkSize && x < chunks.GetLength(0) * chunkSize - 1; x++)
             {
-                for(int y = chunkPos.y * chunkSize; y < (chunkPos.y + 1) * chunkSize; y++)
+                for(int y = chunkPos.y * chunkSize; y < (chunkPos.y + 1) * chunkSize && y < chunks.GetLength(1) * chunkSize - 1; y++)
                 {
-                   int[] triangles = grid.GetTrianglesFromIndex(updatedCaseValues[x,y]);
+                    int[] triangles = grid.GetTrianglesFromIndex(updatedCaseValues[x,y]);
 
-                   UpdateChunkMesh(triangles, chunkPos, new Vector2Int(x,y));
+                    UpdateChunkMesh(triangles, chunkPos, new Vector2Int(x,y));
                 }
             }
 
@@ -237,19 +236,50 @@ public class MarchingSquaresTerrain : MonoBehaviour
     {
         float[,] gridValues = grid.GetGridValues();
         radius = radius / gridScale;
-        for(int y = 0; y < gridValues.GetLength(1); y++)
+
+        HashSet<Vector2Int> chunksToRegenerate = new HashSet<Vector2Int>();
+        
+        for(int x = 0; x < gridValues.GetLength(0); x++)
         {
-            for(int x = 0; x < gridValues.GetLength(0); x++)
+            for(int y = 0; y < gridValues.GetLength(1); y++)
             {
                 Vector2Int pos = new Vector2Int(x,y);
                 float distanceFromCenter = Vector2.Distance(gridPosition, new Vector2(x,y));
                if(distanceFromCenter < radius)
                 {
                     grid.SetGridValue(pos, grid.GetGridValue(pos) + addAmount);
+                    Vector2Int chunkPos = GridToChunk(pos);
+                    if (!chunksToRegenerate.Contains(chunkPos))
+                    {
+                        chunksToRegenerate.Add(chunkPos);
+                    }
                 } 
             }
         }
-        //GenerateMesh(grid);
+        
+        
+        byte[,] updatedCaseValues = grid.GetCaseValues(surfaceValue);
+
+        horizontalInterp = grid.GetHorizontalInterpolatedValues();
+        verticalInterp = grid.GetVerticalInterpolatedValues();
+
+        foreach(Vector2Int chunkPos in chunksToRegenerate)
+        {
+            MarchingSquaresChunk chunk = chunks[chunkPos.x, chunkPos.y];
+            chunk.Clear();
+
+            for(int x = chunkPos.x * chunkSize; x < (chunkPos.x + 1) * chunkSize && x < chunks.GetLength(0) * chunkSize - 1; x++)
+            {
+                for(int y = chunkPos.y * chunkSize; y < (chunkPos.y + 1) * chunkSize && y < chunks.GetLength(1) * chunkSize - 1; y++)
+                {
+                   int[] triangles = grid.GetTrianglesFromIndex(updatedCaseValues[x,y]);
+
+                   UpdateChunkMesh(triangles, chunkPos, new Vector2Int(x,y));
+                }
+            }
+
+            chunk.GenerateMesh();
+        }
     }
 
     void OnDrawGizmos()

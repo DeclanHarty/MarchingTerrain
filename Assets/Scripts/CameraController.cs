@@ -28,7 +28,7 @@ public class CameraController : MonoBehaviour
         camera.orthographicSize += cameraSizeDelta;
         camera.orthographicSize = Mathf.Clamp(camera.orthographicSize, smallestSize, largestSize);
 
-        if (Input.GetMouseButton(2))
+        if (Input.GetKey(KeyCode.LeftShift))
         {
             Vector3 mousePosDelta = (Input.mousePosition - lastMousePosition) / (20 - camera.orthographicSize);
             mousePosDelta.x *= -1f;

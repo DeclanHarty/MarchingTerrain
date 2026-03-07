@@ -149,6 +149,8 @@ public class MarchingSquaresGrid
     public int[] GetTrianglesFromIndex(byte index)
     {
         return triangleCases[index];
-    } 
+    }
+
+    
 
 }
