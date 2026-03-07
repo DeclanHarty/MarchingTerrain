@@ -31,12 +31,13 @@ public class MarchingSquaresTerrain : MonoBehaviour
     [Min(2)]
     public int chunkSize = 2;
 
-
-
     public GameObject caseTilePrefab;
-    public GameObject[,] chunkObjects;
-    private Mesh[,] chunkMeshes;
+    public GameObject chunkPrefab;
+    public MarchingSquaresChunk[,] chunks;
     public Material meshMaterial;
+
+    float[,] horizontalInterp;
+    float[,] verticalInterp;
 
     public int MESH_VERTS_UPPER_LIMIT = 65000;
     // Start is called before the first frame update
@@ -44,31 +45,51 @@ public class MarchingSquaresTerrain : MonoBehaviour
     {
         bottomLeftPosition = bottomLeftMarkerTransform.position;
         InitGrid();
-        GenerateMesh(grid);
+        GenerateTerrain(grid);
     }
 
     public void InitGrid()
     {
         grid = new MarchingSquaresGrid(gridChunksX * chunkSize, gridChunksY * chunkSize, surfaceValue, GenerateNoise);
+
+        if(chunks != null)
+        {
+            foreach(MarchingSquaresChunk chunk in chunks)
+            {
+                Destroy(chunk?.gameObject);
+            }
+        }
+        chunks = new MarchingSquaresChunk[gridChunksX, gridChunksY];
+
+        for(int x = 0; x < chunks.GetLength(0); x++)
+        {
+            for(int y = 0; y < chunks.GetLength(1); y++)
+            {
+                MarchingSquaresChunk chunk = Instantiate(chunkPrefab, Vector3.zero, Quaternion.identity).GetComponent<MarchingSquaresChunk>();
+                chunk.Init(chunkSize);
+                chunks[x,y] = chunk;
+            }
+        }
     }
 
-    public void GenerateMesh(MarchingSquaresGrid grid)
+    public void GenerateTerrain(MarchingSquaresGrid grid)
     {
         byte[,] caseValues = grid.GetCaseValues(surfaceValue);
 
         Vector3[] translations = {new Vector3(-gridScale/2, -gridScale/2), new Vector3(0, -gridScale/2), new Vector3(gridScale/2, -gridScale/2), new Vector3(gridScale/2, 0), new Vector3(gridScale/2, gridScale/2), new Vector3(0, gridScale/2), new Vector3(-gridScale/2, gridScale/2), new Vector3(-gridScale/2, 0)};
-        Dictionary<Vector3, int> pointIndexPairs = new Dictionary<Vector3, int>();
-        List<int> triangleIndices = new List<int>();
-        List<Vector3> vertices = new List<Vector3>();
 
-        float[,] horizontalInterp = grid.GetHorizontalInterpolatedValues();
-        float[,] verticalInterp = grid.GetVerticalInterpolatedValues();
+        horizontalInterp = grid.GetHorizontalInterpolatedValues();
+        verticalInterp = grid.GetVerticalInterpolatedValues();
 
-        for(int y = 0; y < caseValues.GetLength(1); y++)
+        // Add all send all the mesh information to each chunk to prepare for generation
+        for(int x = 0; x < caseValues.GetLength(0); x++)
         {
-            for(int x = 0; x < caseValues.GetLength(0); x++)
+            for(int y = 0; y < caseValues.GetLength(1); y++)
             {
                 int[] triangles = grid.GetTrianglesFromIndex(caseValues[x,y]);
+
+                Vector2Int chunkPos = GridToChunk(new Vector2(x,y));
+                MarchingSquaresChunk chunk = chunks[chunkPos.x, chunkPos.y];
                 
                 for(int i = 0; i < triangles.Length; i++)
                 {
@@ -91,53 +112,55 @@ public class MarchingSquaresTerrain : MonoBehaviour
                             break;
                     }
 
-                    vertex += interpOffset* interpolationScale * gridScale;
+                    vertex += interpOffset * interpolationScale * gridScale;
 
-                    if (!pointIndexPairs.ContainsKey(vertex))
-                    {
-                        pointIndexPairs.Add(vertex, pointIndexPairs.Count);
-                        vertices.Add(vertex);
-                    }
-
-                    triangleIndices.Add(pointIndexPairs[vertex]);
+                    chunk.AddVertex(vertex);
                 }
             }
         }
 
-        if(mesh == null)
+        // Generate the meshes for all chunks
+        for(int x = 0; x < chunks.GetLength(0); x++)
         {
-            mesh = new Mesh
+            for(int y = 0; y < chunks.GetLength(1); y++)
             {
-                indexFormat = IndexFormat.UInt32
-            };
+                chunks[x,y].GenerateMesh();
+            }
         }
+        
+    }
 
-        mesh.Clear();
-        mesh.SetVertices(vertices);
-        mesh.SetTriangles(triangleIndices, 0);
-
-        Vector3[] normals = mesh.normals;
-
-        MeshFilter meshFilter;
-        MeshCollider meshCollider;
-
-        if(meshObject == null)
+    public void UpdateChunkMesh(int[] triangles, Vector2Int chunkPos, Vector2Int casePos)
+    {
+        Vector3[] translations = {new Vector3(-gridScale/2, -gridScale/2), new Vector3(0, -gridScale/2), new Vector3(gridScale/2, -gridScale/2), new Vector3(gridScale/2, 0), new Vector3(gridScale/2, gridScale/2), new Vector3(0, gridScale/2), new Vector3(-gridScale/2, gridScale/2), new Vector3(-gridScale/2, 0)};
+        
+        MarchingSquaresChunk chunk = chunks[chunkPos.x, chunkPos.y];
+                
+        for(int i = 0; i < triangles.Length; i++)
         {
-            meshObject = new GameObject("MarchingSquaresMesh");
-            MeshRenderer meshRenderer = meshObject.AddComponent(typeof(MeshRenderer)) as MeshRenderer;
-            meshFilter = meshObject.AddComponent(typeof(MeshFilter)) as MeshFilter;
-            meshCollider = meshObject.AddComponent(typeof(MeshCollider)) as MeshCollider;
+            Vector3 vertex = bottomLeftMarkerTransform.position + new Vector3(casePos.x,casePos.y) * gridScale + translations[triangles[i]] + new Vector3(gridScale/2, gridScale/2);
+            Vector3 interpOffset = Vector3.zero;
 
-            meshRenderer.material = meshMaterial;
-        }
-        else
-        {
-            meshFilter = meshObject.GetComponent<MeshFilter>();
-            meshCollider = meshObject.GetComponent<MeshCollider>();
-        }
+            switch (triangles[i])
+            {
+                case 1:
+                    interpOffset = new Vector3(horizontalInterp[casePos.x,casePos.y] - .5f, 0);
+                    break;
+                case 3:
+                    interpOffset = new Vector3(0, verticalInterp[casePos.x+1,casePos.y] - .5f);
+                    break;
+                case 5:
+                    interpOffset = new Vector3(horizontalInterp[casePos.x,casePos.y+1] - .5f, 0);
+                    break;
+                case 7:
+                    interpOffset = new Vector3(0, verticalInterp[casePos.x,casePos.y] - .5f);
+                    break;
+            }
 
-        meshCollider.sharedMesh = mesh;
-        meshFilter.mesh = mesh;
+            vertex += interpOffset * interpolationScale * gridScale;
+
+            chunk.AddVertex(vertex);
+        }
     }
 
     public float GenerateNoise(Vector2 pos)
@@ -156,25 +179,58 @@ public class MarchingSquaresTerrain : MonoBehaviour
         return gridPosition;
     }
 
+    public Vector2Int GridToChunk(Vector2 gridPos)
+    {
+        return new Vector2Int(Mathf.FloorToInt(gridPos.x / chunkSize), Mathf.FloorToInt(gridPos.y / chunkSize));
+    }
+
     public void Subtract(Vector2 gridPosition, float radius, float subtractAmount)
     {
         float[,] gridValues = grid.GetGridValues();
         radius = radius / gridScale;
+
+        HashSet<Vector2Int> chunksToRegenerate = new HashSet<Vector2Int>();
         
-        for(int y = 0; y < gridValues.GetLength(1); y++)
+        for(int x = 0; x < gridValues.GetLength(0); x++)
         {
-            for(int x = 0; x < gridValues.GetLength(0); x++)
+            for(int y = 0; y < gridValues.GetLength(1); y++)
             {
                 Vector2Int pos = new Vector2Int(x,y);
                 float distanceFromCenter = Vector2.Distance(gridPosition, new Vector2(x,y));
                if(distanceFromCenter < radius)
                 {
-                    
                     grid.SetGridValue(pos, grid.GetGridValue(pos) - subtractAmount);
+                    Vector2Int chunkPos = GridToChunk(pos);
+                    if (!chunksToRegenerate.Contains(chunkPos))
+                    {
+                        chunksToRegenerate.Add(chunkPos);
+                    }
                 } 
             }
         }
-        GenerateMesh(grid);
+        
+        byte[,] updatedCaseValues = grid.GetCaseValues(surfaceValue);
+
+        horizontalInterp = grid.GetHorizontalInterpolatedValues();
+        verticalInterp = grid.GetVerticalInterpolatedValues();
+
+        foreach(Vector2Int chunkPos in chunksToRegenerate)
+        {
+            MarchingSquaresChunk chunk = chunks[chunkPos.x, chunkPos.y];
+            chunk.Clear();
+
+            for(int x = chunkPos.x * chunkSize; x < (chunkPos.x + 1) * chunkSize; x++)
+            {
+                for(int y = chunkPos.y * chunkSize; y < (chunkPos.y + 1) * chunkSize; y++)
+                {
+                   int[] triangles = grid.GetTrianglesFromIndex(updatedCaseValues[x,y]);
+
+                   UpdateChunkMesh(triangles, chunkPos, new Vector2Int(x,y));
+                }
+            }
+
+            chunk.GenerateMesh();
+        }
     }
 
     public void Add(Vector2 gridPosition, float radius, float addAmount)
@@ -193,7 +249,7 @@ public class MarchingSquaresTerrain : MonoBehaviour
                 } 
             }
         }
-        GenerateMesh(grid);
+        //GenerateMesh(grid);
     }
 
     void OnDrawGizmos()

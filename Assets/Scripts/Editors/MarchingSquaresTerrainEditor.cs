@@ -15,8 +15,12 @@ public class MarchingSquaresTerrainEditor : Editor
         if (EditorGUI.EndChangeCheck())
         {
             MarchingSquaresTerrain terrain = (MarchingSquaresTerrain)target;
-            terrain.InitGrid();
-            terrain.GenerateMesh(terrain.grid);
+            if (Application.isPlaying)
+            {
+                terrain.InitGrid();
+                terrain.GenerateTerrain(terrain.grid);
+            }
+            
         }
     }
 }

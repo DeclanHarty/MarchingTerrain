@@ -8,7 +8,7 @@ public class MarchingSquaresGrid
 {
 
     // Reference https://nils-olovsson.se/articles/marching_squares/
-    float surfaceValue;
+    public float surfaceValue;
     float[,] valueGrid;
     byte[,] caseValues;
 
