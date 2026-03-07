@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Experimental.AI;
+using UnityEngine.Rendering;
 
 public class MarchingSquaresTerrain : MonoBehaviour
 {
@@ -23,13 +24,21 @@ public class MarchingSquaresTerrain : MonoBehaviour
     public float interpolationScale;
 
     [Min(2)]
-    public int gridSizeX = 2;
+    public int gridChunksX = 2;
     [Min(2)]
-    public int gridSizeY = 2;
+    public int gridChunksY = 2;
+
+    [Min(2)]
+    public int chunkSize = 2;
+
+
 
     public GameObject caseTilePrefab;
-    public GameObject meshObject;
+    public GameObject[,] chunkObjects;
+    private Mesh[,] chunkMeshes;
     public Material meshMaterial;
+
+    public int MESH_VERTS_UPPER_LIMIT = 65000;
     // Start is called before the first frame update
     void Start()
     {
@@ -40,7 +49,7 @@ public class MarchingSquaresTerrain : MonoBehaviour
 
     public void InitGrid()
     {
-        grid = new MarchingSquaresGrid(gridSizeX, gridSizeY, surfaceValue, GenerateNoise);
+        grid = new MarchingSquaresGrid(gridChunksX * chunkSize, gridChunksY * chunkSize, surfaceValue, GenerateNoise);
     }
 
     public void GenerateMesh(MarchingSquaresGrid grid)
@@ -50,6 +59,7 @@ public class MarchingSquaresTerrain : MonoBehaviour
         Vector3[] translations = {new Vector3(-gridScale/2, -gridScale/2), new Vector3(0, -gridScale/2), new Vector3(gridScale/2, -gridScale/2), new Vector3(gridScale/2, 0), new Vector3(gridScale/2, gridScale/2), new Vector3(0, gridScale/2), new Vector3(-gridScale/2, gridScale/2), new Vector3(-gridScale/2, 0)};
         Dictionary<Vector3, int> pointIndexPairs = new Dictionary<Vector3, int>();
         List<int> triangleIndices = new List<int>();
+        List<Vector3> vertices = new List<Vector3>();
 
         float[,] horizontalInterp = grid.GetHorizontalInterpolatedValues();
         float[,] verticalInterp = grid.GetVerticalInterpolatedValues();
@@ -59,6 +69,7 @@ public class MarchingSquaresTerrain : MonoBehaviour
             for(int x = 0; x < caseValues.GetLength(0); x++)
             {
                 int[] triangles = grid.GetTrianglesFromIndex(caseValues[x,y]);
+                
                 for(int i = 0; i < triangles.Length; i++)
                 {
                     Vector3 vertex = bottomLeftMarkerTransform.position + new Vector3(x,y) * gridScale + translations[triangles[i]] + new Vector3(gridScale/2, gridScale/2);
@@ -76,7 +87,7 @@ public class MarchingSquaresTerrain : MonoBehaviour
                             interpOffset = new Vector3(horizontalInterp[x,y+1] - .5f, 0);
                             break;
                         case 7:
-                            interpOffset = new Vector3(0,   verticalInterp[x,y] - .5f);
+                            interpOffset = new Vector3(0, verticalInterp[x,y] - .5f);
                             break;
                     }
 
@@ -85,6 +96,7 @@ public class MarchingSquaresTerrain : MonoBehaviour
                     if (!pointIndexPairs.ContainsKey(vertex))
                     {
                         pointIndexPairs.Add(vertex, pointIndexPairs.Count);
+                        vertices.Add(vertex);
                     }
 
                     triangleIndices.Add(pointIndexPairs[vertex]);
@@ -92,13 +104,17 @@ public class MarchingSquaresTerrain : MonoBehaviour
             }
         }
 
-        Vector3[] verticesArray = pointIndexPairs.OrderBy(pair => pair.Value).Select(pair => pair.Key).ToArray();
-
-        Mesh mesh = new Mesh
+        if(mesh == null)
         {
-            vertices = verticesArray,
-            triangles = triangleIndices.ToArray(),
-        };
+            mesh = new Mesh
+            {
+                indexFormat = IndexFormat.UInt32
+            };
+        }
+
+        mesh.Clear();
+        mesh.SetVertices(vertices);
+        mesh.SetTriangles(triangleIndices, 0);
 
         Vector3[] normals = mesh.normals;
 
