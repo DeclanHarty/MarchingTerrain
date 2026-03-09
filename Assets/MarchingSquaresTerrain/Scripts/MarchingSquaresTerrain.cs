@@ -56,7 +56,7 @@ public class MarchingSquaresTerrain : MonoBehaviour
         {
             foreach(MarchingSquaresChunk chunk in chunks)
             {
-                Destroy(chunk?.gameObject);
+                DestroyImmediate(chunk?.gameObject);
             }
         }
         chunks = new MarchingSquaresChunk[gridChunksX, gridChunksY];

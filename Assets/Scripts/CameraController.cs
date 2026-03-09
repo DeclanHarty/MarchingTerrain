@@ -21,7 +21,6 @@ public class CameraController : MonoBehaviour
 
     public void Update()
     {
-
         Vector2 mouseScroll = Input.mouseScrollDelta;
 
         float cameraSizeDelta = -1 * mouseScroll.y * zoomSpeed * Time.deltaTime;
